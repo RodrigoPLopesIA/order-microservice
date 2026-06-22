@@ -1,3 +1,15 @@
+server:
+    port: 8081
 spring:
   application:
     name: order-service
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/order-service-db
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    topic:
+      kafka-topic: "create-order-topic"
