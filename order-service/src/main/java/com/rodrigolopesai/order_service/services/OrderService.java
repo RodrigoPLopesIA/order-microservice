@@ -24,27 +24,11 @@ public class OrderService {
     }
 
     public OrderDTO save(CreateOrderDTO data) {
-        var totalItems = getTotalItems(data);
-        var totalPrice = getTotalPrice(data);
-        var items = data.items().stream().map(item -> Item.builder()
-                .name(item.name())
-                .quantity(item.quantity())
-                .price(item.price())
-                .build()).toList();
-        
-        Order order = Order.builder().totalItems(totalItems).totalPrice(totalPrice).items(items).build();
+        var order = mapToEntity(data);
         var saved = orderRepository.save(order);
-
-        List<ItemDTO> itemsDTO = saved.getItems().stream().map(item -> com.rodrigolopesai.order_service.dto.ItemDTO.builder()
-                .name(item.getName())
-                .quantity(item.getQuantity())
-                .price(item.getPrice())
-                .build()).toList();
-
-        var response = OrderDTO.builder().id(saved.getId()).items(itemsDTO).totalItems(saved.getTotalItems()).totalPrice(saved.getTotalPrice())
-                .createdAt(saved.getCreatedAt()).updatedAt(saved.getUpdatedAt()).build();
-
+        var response = mapToDTO(saved);
         producerService.sendMessage("create-order-topic", response);
+
         return response;
     }
 
@@ -54,6 +38,28 @@ public class OrderService {
 
     private double getTotalPrice(CreateOrderDTO data) {
         return data.items().stream().mapToDouble(item -> item.quantity() * item.price()).sum();
+    }
+    private Order mapToEntity(CreateOrderDTO data) {
+        var totalItems = getTotalItems(data);
+        var totalPrice = getTotalPrice(data);
+        var items = data.items().stream().map(item -> Item.builder()
+                .name(item.name())
+                .quantity(item.quantity())
+                .price(item.price())
+                .build()).toList();
+
+        Order order = Order.builder().totalItems(totalItems).totalPrice(totalPrice).items(items).build();
+        return order;
+    }
+    private OrderDTO mapToDTO(Order order) {
+        List<ItemDTO> itemsDTO = order.getItems().stream().map(item -> ItemDTO.builder()
+                .name(item.getName())
+                .quantity(item.getQuantity())
+                .price(item.getPrice())
+                .build()).toList();
+
+        return OrderDTO.builder().id(order.getId()).items(itemsDTO).totalItems(order.getTotalItems()).totalPrice(order.getTotalPrice())
+                .createdAt(order.getCreatedAt()).updatedAt(order.getUpdatedAt()).build();
     }
 
 
