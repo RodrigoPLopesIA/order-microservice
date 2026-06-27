@@ -1,6 +1,7 @@
 package com.rodrigolopesai.order_service.entities;
 
 
+import com.rodrigolopesai.order_service.enums.OrderStatus;
 import lombok.Builder;
 import lombok.Data;
 import org.springframework.data.annotation.CreatedDate;
@@ -18,10 +19,10 @@ public class Order {
 
     @Id
     private String id;
-    private List<Item> items = new ArrayList<>();
+    private List<Item> items;
     private int totalItems;
     private double totalPrice;
-
+    private OrderStatus status;
     @CreatedDate
     private Long createdAt;
     @LastModifiedDate

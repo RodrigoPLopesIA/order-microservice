@@ -5,6 +5,7 @@ import com.rodrigolopesai.order_service.dto.ItemDTO;
 import com.rodrigolopesai.order_service.dto.OrderDTO;
 import com.rodrigolopesai.order_service.entities.Item;
 import com.rodrigolopesai.order_service.entities.Order;
+import com.rodrigolopesai.order_service.enums.OrderStatus;
 import com.rodrigolopesai.order_service.repositories.OrderRepository;
 import org.springframework.stereotype.Service;
 
@@ -48,8 +49,7 @@ public class OrderService {
                 .price(item.price())
                 .build()).toList();
 
-        Order order = Order.builder().totalItems(totalItems).totalPrice(totalPrice).items(items).build();
-        return order;
+        return Order.builder().totalItems(totalItems).totalPrice(totalPrice).items(items).status(OrderStatus.CREATED).build();
     }
     private OrderDTO mapToDTO(Order order) {
         List<ItemDTO> itemsDTO = order.getItems().stream().map(item -> ItemDTO.builder()
@@ -58,7 +58,7 @@ public class OrderService {
                 .price(item.getPrice())
                 .build()).toList();
 
-        return OrderDTO.builder().id(order.getId()).items(itemsDTO).totalItems(order.getTotalItems()).totalPrice(order.getTotalPrice())
+        return OrderDTO.builder().id(order.getId()).items(itemsDTO).status(order.getStatus()).totalItems(order.getTotalItems()).totalPrice(order.getTotalPrice())
                 .createdAt(order.getCreatedAt()).updatedAt(order.getUpdatedAt()).build();
     }
 

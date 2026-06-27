@@ -18,10 +18,11 @@ public class ItemConsumer {
         this.objectMapper = new ObjectMapper();
         this.itemService = itemService;
     }
-    @KafkaListener(topics = "create-order-topic", groupId = "inventory-service-group")
-    public void consume(String message) {
+    @KafkaListener(topics = "create-order-topic")
+    public void consumer(String message) {
 
         try {
+            log.info("Received message: {}", message);
             this.itemService.verifyInventory(objectMapper.readValue(message, OrderDTO.class));
         }catch (Exception e) {
             log.warn(e.getMessage());

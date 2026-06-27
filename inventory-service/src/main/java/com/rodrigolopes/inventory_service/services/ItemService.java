@@ -3,6 +3,7 @@ package com.rodrigolopes.inventory_service.services;
 import com.rodrigolopes.inventory_service.dto.ItemDTO;
 import com.rodrigolopes.inventory_service.dto.OrderDTO;
 import com.rodrigolopes.inventory_service.entities.Item;
+import com.rodrigolopes.inventory_service.enums.OrderStatus;
 import com.rodrigolopes.inventory_service.repository.ItemRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,8 +26,8 @@ public class ItemService {
     public void verifyInventory(OrderDTO order) {
         try {
             // somente processar se o status for CREATED ou PROCESSING
-            boolean isCreated = "CREATED".equals(order.status());
-            boolean isProcessing = "PROCESSING".equals(order.status());
+            boolean isCreated = "CREATED".equalsIgnoreCase(order.status().toString());
+            boolean isProcessing = "PROCESSING".equalsIgnoreCase(order.status().toString());
             if (!isCreated && !isProcessing) {
                 return;
             }
@@ -34,7 +35,7 @@ public class ItemService {
             // se estiver CREATED, enviar evento para atualizar para PROCESSING
             if (isCreated) {
                 producerService.sendMessage("update-order-status",
-                        Map.of("orderId", order.id(), "status", "PROCESSING"));
+                        Map.of("orderId", order.id(), "status", OrderStatus.PROCESSING));
             }
 
             // verificar cada item
@@ -45,7 +46,7 @@ public class ItemService {
                     producerService.sendMessage("update-order-status",
                             Map.of(
                                     "orderId", order.id(),
-                                    "status", "CANCELED",
+                                    "status", OrderStatus.FAILED,
                                     "reason", "ITEM_NOT_FOUND",
                                     "itemId", itemDto.itemId()
                             ));
@@ -54,13 +55,12 @@ public class ItemService {
 
                 Item item = optItem.get();
 
-                // verificar quantidade
                 if (itemDto.quantity() > item.getQuantity()) {
                     log.warn("Requested quantity greater than available for item: " + itemDto.itemId());
                     producerService.sendMessage("update-order-status",
                             Map.of(
                                     "orderId", order.id(),
-                                    "status", "CANCELED",
+                                    "status", OrderStatus.FAILED,
                                     "reason", "QUANTITY_EXCEEDED",
                                     "itemId", itemDto.itemId(),
                                     "requested", itemDto.quantity(),
