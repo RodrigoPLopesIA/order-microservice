@@ -2,10 +2,13 @@ package com.rodrigolopes.inventory_service.services;
 
 import com.rodrigolopes.inventory_service.dto.ItemDTO;
 import com.rodrigolopes.inventory_service.dto.OrderDTO;
+import com.rodrigolopes.inventory_service.dto.ItemRequestDTO;
+import com.rodrigolopes.inventory_service.dto.ItemResponseDTO;
 import com.rodrigolopes.inventory_service.entities.Item;
 import com.rodrigolopes.inventory_service.enums.OrderStatus;
 import com.rodrigolopes.inventory_service.repository.ItemRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Example;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -81,5 +84,18 @@ public class ItemService {
         } catch (Exception e) {
             log.warn("Error verifying inventory for order: " + order.id() + " - " + e.getMessage(), e);
         }
+    }
+
+    public ItemResponseDTO create(ItemRequestDTO data){
+
+        var product = Item.builder().name(data.name()).price(data.price()).quantity(data.quantity()).build();
+
+        itemRepository.findByName(data.name()).ifPresent(existingProduct -> {
+            throw new RuntimeException("Product with name " + data.name() + " already exists.");
+        });
+        var savedProduct = itemRepository.save(product);
+
+        return new ItemResponseDTO(savedProduct.getId(), savedProduct.getName(), savedProduct.getDescription(), savedProduct.getPrice(), savedProduct.getQuantity(), savedProduct.getCreatedAt(), savedProduct.getUpdatedAt());
+
     }
 }
