@@ -9,10 +9,13 @@ import com.rodrigolopes.inventory_service.enums.OrderStatus;
 import com.rodrigolopes.inventory_service.repository.ItemRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Example;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 @Slf4j
@@ -86,16 +89,41 @@ public class ItemService {
         }
     }
 
+    public ItemResponseDTO getById(String itemId) {
+        var item = itemRepository.findById(itemId).orElseThrow(() -> new RuntimeException("Item not found with id: " + itemId));
+        return new ItemResponseDTO(item.getItemId(), item.getName(), item.getDescription(), item.getPrice(), item.getQuantity(), item.getCreatedAt(), item.getUpdatedAt());
+    }
+
+    public Page<ItemResponseDTO> findAll(Pageable pageable) {
+        var itemsPage = itemRepository.findAll(pageable);
+        return itemsPage.map(item -> new ItemResponseDTO(item.getItemId(), item.getName(), item.getDescription(), item.getPrice(), item.getQuantity(), item.getCreatedAt(), item.getUpdatedAt()));
+    }
+
     public ItemResponseDTO create(ItemRequestDTO data){
 
-        var product = Item.builder().name(data.name()).price(data.price()).quantity(data.quantity()).build();
+        var product = Item.builder().itemId(UUID.randomUUID().toString()).name(data.name()).price(data.price()).quantity(data.quantity()).description(data.description()).build();
 
         itemRepository.findByName(data.name()).ifPresent(existingProduct -> {
             throw new RuntimeException("Product with name " + data.name() + " already exists.");
         });
         var savedProduct = itemRepository.save(product);
 
-        return new ItemResponseDTO(savedProduct.getId(), savedProduct.getName(), savedProduct.getDescription(), savedProduct.getPrice(), savedProduct.getQuantity(), savedProduct.getCreatedAt(), savedProduct.getUpdatedAt());
+        return new ItemResponseDTO(savedProduct.getItemId().toString(), savedProduct.getName(), savedProduct.getDescription(), savedProduct.getPrice(), savedProduct.getQuantity(), savedProduct.getCreatedAt(), savedProduct.getUpdatedAt());
 
+    }
+
+    public ItemResponseDTO update(String itemId, ItemRequestDTO data) {
+        var item = itemRepository.findById(itemId).orElseThrow(() -> new RuntimeException("Item not found with id: " + itemId));
+        item.setName(data.name());
+        item.setDescription(data.description());
+        item.setPrice(data.price());
+        item.setQuantity(data.quantity());
+        var updatedItem = itemRepository.save(item);
+        return new ItemResponseDTO(updatedItem.getItemId(), updatedItem.getName(), updatedItem.getDescription(), updatedItem.getPrice(), updatedItem.getQuantity(), updatedItem.getCreatedAt(), updatedItem.getUpdatedAt());
+    }
+
+    public void delete(String itemId) {
+        var item = itemRepository.findById(itemId).orElseThrow(() -> new RuntimeException("Item not found with id: " + itemId));
+        itemRepository.delete(item);
     }
 }
