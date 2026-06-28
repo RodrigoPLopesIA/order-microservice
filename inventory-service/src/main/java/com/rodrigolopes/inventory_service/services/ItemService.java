@@ -6,6 +6,8 @@ import com.rodrigolopes.inventory_service.dto.ItemRequestDTO;
 import com.rodrigolopes.inventory_service.dto.ItemResponseDTO;
 import com.rodrigolopes.inventory_service.entities.Item;
 import com.rodrigolopes.inventory_service.enums.OrderStatus;
+import com.rodrigolopes.inventory_service.exceptions.ItemNotFoundException;
+import com.rodrigolopes.inventory_service.exceptions.OutOfStockException;
 import com.rodrigolopes.inventory_service.repository.ItemRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Example;
@@ -28,65 +30,83 @@ public class ItemService {
         this.itemRepository = itemRepository;
         this.producerService = producerService;
     }
+    private boolean isCreatedStatus(String status) {
+        return "CREATED".equalsIgnoreCase(status);
+    }
 
-    public void verifyInventory(OrderDTO order) {
-        try {
-            // somente processar se o status for CREATED ou PROCESSING
-            boolean isCreated = "CREATED".equalsIgnoreCase(order.status().toString());
-            boolean isProcessing = "PROCESSING".equalsIgnoreCase(order.status().toString());
-            if (!isCreated && !isProcessing) {
-                return;
-            }
+    private boolean isProcessingStatus(String status) {
+        return "PROCESSING".equalsIgnoreCase(status);
+    }
 
-            // se estiver CREATED, enviar evento para atualizar para PROCESSING
-            if (isCreated) {
-                producerService.sendMessage("update-order-status",
-                        Map.of("orderId", order.id(), "status", OrderStatus.PROCESSING));
-            }
+    private boolean isValidStatus(String status) {
+        return isCreatedStatus(status) || isProcessingStatus(status);
+    }
 
-            // verificar cada item
-            for (ItemDTO itemDto : order.items()) {
-                Optional<Item> optItem = itemRepository.findByItemId(itemDto.itemId());
-                if (optItem.isEmpty()) {
-                    log.warn("Item not found: " + itemDto.itemId());
-                    producerService.sendMessage("update-order-status",
-                            Map.of(
-                                    "orderId", order.id(),
-                                    "status", OrderStatus.FAILED,
-                                    "reason", "ITEM_NOT_FOUND",
-                                    "itemId", itemDto.itemId()
-                            ));
-                    return;
-                }
+    private void publishMessage(String topic, Map<String, Object> message) {
+        producerService.sendMessage(topic, message);
+    }
+    private static final String UPDATE_ORDER_STATUS_TOPIC = "update-order-status";
 
-                Item item = optItem.get();
+    public void processOrder(OrderDTO order) {
 
-                if (itemDto.quantity() > item.getQuantity()) {
-                    log.warn("Requested quantity greater than available for item: " + itemDto.itemId());
-                    producerService.sendMessage("update-order-status",
-                            Map.of(
-                                    "orderId", order.id(),
-                                    "status", OrderStatus.FAILED,
-                                    "reason", "QUANTITY_EXCEEDED",
-                                    "itemId", itemDto.itemId(),
-                                    "requested", itemDto.quantity(),
-                                    "available", item.getQuantity()
-                            ));
-                    return;
-                }
-
-                // decrementar quantidade e salvar
-                item.setQuantity(item.getQuantity() - itemDto.quantity());
-                itemRepository.save(item);
-            }
-
-            // se todos os items existem e quantidades foram atualizadas
-            producerService.sendMessage("update-order-status",
-                    Map.of("orderId", order.id(), "status", "COMPLETED"));
-
-        } catch (Exception e) {
-            log.warn("Error verifying inventory for order: " + order.id() + " - " + e.getMessage(), e);
+        if (!isValidStatus(order.status().name())) {
+            log.warn("Ignoring order {} because status is {}", order.id(), order.status());
+            return;
         }
+
+        if (isCreatedStatus(order.status().name())) {
+            publishProcessingStatus(order.id());
+        }
+
+        for (ItemDTO itemDto : order.items()) {
+            processItem(order, itemDto);
+        }
+
+        publishCompletedStatus(order.id());
+    }
+
+    private void processItem(OrderDTO order, ItemDTO itemDto) {
+
+        Item item = itemRepository.findByItemId(itemDto.itemId())
+                .orElseThrow(() -> new ItemNotFoundException(order.id(), itemDto.itemId()));
+
+        validateStock(item, itemDto, order.id());
+
+        item.setQuantity(item.getQuantity() - itemDto.quantity());
+
+        itemRepository.save(item);
+    }
+
+    private void validateStock(Item item, ItemDTO itemDto, String orderId) {
+
+        if (itemDto.quantity() > item.getQuantity()) {
+            throw new OutOfStockException(
+                    orderId,
+                    itemDto.itemId(),
+                    itemDto.quantity(),
+                    item.getQuantity()
+            );
+        }
+    }
+
+    private void publishProcessingStatus(String orderId) {
+        publishMessage(
+                UPDATE_ORDER_STATUS_TOPIC,
+                Map.of(
+                        "orderId", orderId,
+                        "status", OrderStatus.PROCESSING
+                )
+        );
+    }
+
+    private void publishCompletedStatus(String orderId) {
+        publishMessage(
+                UPDATE_ORDER_STATUS_TOPIC,
+                Map.of(
+                        "orderId", orderId,
+                        "status", OrderStatus.COMPLETED
+                )
+        );
     }
 
     public ItemResponseDTO getById(String itemId) {
