@@ -40,11 +40,7 @@ public class ItemConsumer {
                     delay = 1000,
                     multiplier = 2.0
             ),
-            dltTopicSuffix = "-dlt",
-            exclude = {
-                    OutOfStockException.class,
-                    ItemNotFoundException.class
-            }
+            dltTopicSuffix = "-dlt"
 
     )
     @KafkaListener(topics = "create-order-topic")
