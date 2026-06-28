@@ -46,7 +46,7 @@ public class ItemService {
 
             // verificar cada item
             for (ItemDTO itemDto : order.items()) {
-                Optional<Item> optItem = itemRepository.findById(itemDto.itemId());
+                Optional<Item> optItem = itemRepository.findByItemId(itemDto.itemId());
                 if (optItem.isEmpty()) {
                     log.warn("Item not found: " + itemDto.itemId());
                     producerService.sendMessage("update-order-status",
@@ -90,7 +90,7 @@ public class ItemService {
     }
 
     public ItemResponseDTO getById(String itemId) {
-        var item = itemRepository.findById(itemId).orElseThrow(() -> new RuntimeException("Item not found with id: " + itemId));
+        var item = itemRepository.findByItemId(itemId).orElseThrow(() -> new RuntimeException("Item not found with id: " + itemId));
         return new ItemResponseDTO(item.getItemId(), item.getName(), item.getDescription(), item.getPrice(), item.getQuantity(), item.getCreatedAt(), item.getUpdatedAt());
     }
 
@@ -108,7 +108,7 @@ public class ItemService {
         });
         var savedProduct = itemRepository.save(product);
 
-        return new ItemResponseDTO(savedProduct.getItemId().toString(), savedProduct.getName(), savedProduct.getDescription(), savedProduct.getPrice(), savedProduct.getQuantity(), savedProduct.getCreatedAt(), savedProduct.getUpdatedAt());
+        return new ItemResponseDTO(savedProduct.getItemId(), savedProduct.getName(), savedProduct.getDescription(), savedProduct.getPrice(), savedProduct.getQuantity(), savedProduct.getCreatedAt(), savedProduct.getUpdatedAt());
 
     }
 
