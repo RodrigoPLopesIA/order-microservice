@@ -8,15 +8,14 @@ import com.rodrigolopes.inventory_service.entities.Item;
 import com.rodrigolopes.inventory_service.enums.OrderStatus;
 import com.rodrigolopes.inventory_service.exceptions.ItemNotFoundException;
 import com.rodrigolopes.inventory_service.exceptions.OutOfStockException;
+import com.rodrigolopes.inventory_service.producers.ProducerService;
 import com.rodrigolopes.inventory_service.repository.ItemRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Example;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -145,5 +144,7 @@ public class ItemService {
     public void delete(String itemId) {
         var item = itemRepository.findById(itemId).orElseThrow(() -> new RuntimeException("Item not found with id: " + itemId));
         itemRepository.delete(item);
+
+        publishMessage("delete-item-order-topic", Map.of("itemId", item.getItemId()));
     }
 }

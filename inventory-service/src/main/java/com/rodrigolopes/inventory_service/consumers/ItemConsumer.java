@@ -5,7 +5,7 @@ import com.rodrigolopes.inventory_service.enums.OrderStatus;
 import com.rodrigolopes.inventory_service.exceptions.ItemNotFoundException;
 import com.rodrigolopes.inventory_service.exceptions.OutOfStockException;
 import com.rodrigolopes.inventory_service.services.ItemService;
-import com.rodrigolopes.inventory_service.services.ProducerService;
+import com.rodrigolopes.inventory_service.producers.ProducerService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.BackOff;
 import org.springframework.kafka.annotation.DltHandler;
